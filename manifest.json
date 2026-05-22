@@ -1,0 +1,10 @@
+{
+  "id": "obsidian-export-pdf",
+  "name": "Obsidian Export PDF (+ image compress)",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "Export Markdown to PDF with automatic image compression. Uses Python (reportlab + Pillow) as the rendering engine for reliable CJK font support.",
+  "author": "hunter00zb",
+  "authorUrl": "https://github.com/hunter00zb",
+  "isDesktopOnly": true
+}

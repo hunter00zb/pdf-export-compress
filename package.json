@@ -1,0 +1,26 @@
+{
+  "name": "obsidian-export-pdf",
+  "version": "1.0.0",
+  "description": "Obsidian Export PDF (+ image compress) - Export Markdown to PDF with automatic image compression",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+  },
+  "keywords": [
+    "obsidian",
+    "obsidian-plugin",
+    "pdf",
+    "export",
+    "image-compression"
+  ],
+  "author": "hunter00zb",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.20.0",
+    "obsidian": "latest",
+    "tslib": "^2.6.0",
+    "typescript": "^5.0.0"
+  }
+}

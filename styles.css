@@ -1,0 +1,46 @@
+/* Obsidian Export PDF (+ image compress) - Plugin Styles */
+
+/* ── Path row: textarea + select button ── */
+.export-pdf-path-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    margin: 0 0 4px 0;
+}
+
+.export-pdf-path-input {
+    flex: 1;
+    min-height: unset;
+    height: 2.8em;          /* 2 lines of text */
+    font-family: var(--font-monospace);
+    font-size: var(--font-ui-smaller);
+    resize: none;
+    padding: 2px 6px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-modifier-form-field);
+    color: var(--text-normal);
+    line-height: 1.3;
+    overflow-y: auto;
+}
+
+.export-pdf-browse-btn {
+    flex-shrink: 0;
+    padding: 4px 14px;
+    height: 2.8em;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    font-size: var(--font-ui-smaller);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.export-pdf-browse-btn:hover {
+    background: var(--background-modifier-hover);
+}
+
+.export-pdf-browse-btn:active {
+    background: var(--background-modifier-active);
+}
