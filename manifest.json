@@ -1,9 +1,9 @@
 {
-  "id": "obsidian-export-pdf",
-  "name": "导出 PDF（图片压缩）",
-  "version": "1.1.0",
+  "id": "export-pdf-with-compression",
+  "name": "导出 PDF（图片压缩） / Export PDF (+ Image Compress)",
+  "version": "1.1.1",
   "minAppVersion": "0.15.0",
-  "description": "将 Markdown 笔记导出为 PDF，支持图片自动压缩。使用 Python（reportlab + Pillow）渲染引擎，支持中文字体。",
+  "description": "将 Markdown 导出为 PDF，支持图片自动压缩。Python（reportlab + Pillow）渲染，支持 CJK。 / Export Markdown to PDF with auto image compression. Python (reportlab + Pillow) engine, CJK support.",
   "author": "hunter00zb",
   "authorUrl": "https://github.com/hunter00zb",
   "isDesktopOnly": true

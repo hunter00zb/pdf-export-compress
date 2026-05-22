@@ -241,7 +241,7 @@ export default class ExportPdfPlugin extends Plugin {
             vaultBasePath,
             ".obsidian",
             "plugins",
-            "obsidian-export-pdf",
+            this.manifest.id,
             "md_to_pdf.py"
         ));
 
