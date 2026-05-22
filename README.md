@@ -1,4 +1,4 @@
-# Obsidian Export PDF (+ image compress) / 导出 PDF（图片压缩）
+# 导出 PDF（图片压缩） / Export PDF (+ Image Compress)
 
 [中文](#chinese) | [English](#english)
 
@@ -48,7 +48,7 @@ pip3 install reportlab Pillow
 ### 安装
 
 1. 从 [GitHub Releases](https://github.com/hunter00zb/obsidian-export-pdf/releases) 下载最新版本
-2. 解压到 vault 的 `.obsidian/plugins/obsidian-export-pdf/` 目录
+2. 解压到 vault 的 `.obsidian/plugins/export-pdf-with-compression/` 目录
 3. 在 Obsidian 设置 → 第三方插件中启用
 
 ### 使用
@@ -118,7 +118,7 @@ pip3 install reportlab Pillow
 ### Installation
 
 1. Download the latest release from [GitHub Releases](https://github.com/hunter00zb/obsidian-export-pdf/releases)
-2. Extract to `.obsidian/plugins/obsidian-export-pdf/` in your vault
+2. Extract to `.obsidian/plugins/export-pdf-with-compression/` in your vault
 3. Enable the plugin in Obsidian Settings → Community Plugins
 
 ### Usage
