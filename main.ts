@@ -1,4 +1,4 @@
-import { Plugin, Notice, TFile, Menu, Editor, MarkdownView, Modal, App, Setting } from "obsidian";
+import { Plugin, Notice, TFile, Menu, Editor, MarkdownView, Modal, App, Setting, normalizePath } from "obsidian";
 import { exec } from "child_process";
 import * as path from "path";
 import * as fs from "fs";
@@ -237,13 +237,13 @@ export default class ExportPdfPlugin extends Plugin {
     async onload() {
         // Locate the Python script in the plugin directory
         const vaultBasePath = (this.app.vault.adapter as any).basePath || "";
-        this.scriptPath = path.join(
+        this.scriptPath = normalizePath(path.join(
             vaultBasePath,
             ".obsidian",
             "plugins",
             "obsidian-export-pdf",
             "md_to_pdf.py"
-        );
+        ));
 
         if (!fs.existsSync(this.scriptPath)) {
             new Notice(
@@ -303,7 +303,8 @@ export default class ExportPdfPlugin extends Plugin {
      */
     private openExportModal(file: TFile) {
         const vaultBasePath = (this.app.vault.adapter as any).basePath || "";
-        const mdFullPath = path.join(vaultBasePath, file.path);
+        const relPath = normalizePath(file.path);
+        const mdFullPath = path.join(vaultBasePath, relPath);
         const defaultOutPath = path.join(
             path.dirname(mdFullPath),
             file.basename + ".pdf"
@@ -319,7 +320,8 @@ export default class ExportPdfPlugin extends Plugin {
      */
     private exportFile(file: TFile, outPath: string, quality: number, maxWidth: number) {
         const vaultBasePath = (this.app.vault.adapter as any).basePath || "";
-        const mdFullPath = path.join(vaultBasePath, file.path);
+        const relPath = normalizePath(file.path);
+        const mdFullPath = path.join(vaultBasePath, relPath);
 
         // Escape paths for shell
         const esc = (p: string) => p.replace(/"/g, '\\"');
