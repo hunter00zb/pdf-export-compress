@@ -48,8 +48,8 @@ var ExportPdfModal = class extends import_obsidian.Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("export-pdf-modal");
-    contentEl.createEl("h3", { text: "Export to PDF" });
-    new import_obsidian.Setting(contentEl).setName("\u4FDD\u5B58\u4F4D\u7F6E").setDesc("\u9ED8\u8BA4\u4E0E\u6E90\u6587\u4EF6\u540C\u76EE\u5F55");
+    contentEl.createEl("h3", { text: "\u5BFC\u51FA PDF / Export to PDF" });
+    new import_obsidian.Setting(contentEl).setName("\u4FDD\u5B58\u4F4D\u7F6E / Save Location").setDesc("\u9ED8\u8BA4\u4E0E\u6E90\u6587\u4EF6\u540C\u76EE\u5F55\nSame directory as source file");
     const pathRow = contentEl.createDiv({ cls: "export-pdf-path-row" });
     const textarea = pathRow.createEl("textarea", {
       cls: "export-pdf-path-input",
@@ -62,17 +62,42 @@ var ExportPdfModal = class extends import_obsidian.Modal {
       cls: "export-pdf-browse-btn"
     });
     browseBtn.addEventListener("click", () => this.openSaveDialog());
+    new import_obsidian.Setting(contentEl).setName("\u56FE\u7247\u538B\u7F29\u8D28\u91CF / Image Quality").setDesc("\u63A8\u8350 60%\uFF0C\u8D8A\u4F4E\u6587\u4EF6\u8D8A\u5C0F\uFF0C\u8D8A\u9AD8\u753B\u8D28\u8D8A\u597D\nRecommended 60%. Lower=smaller, higher=better");
+    const qualityRow = contentEl.createDiv({ cls: "export-pdf-quality-row" });
+    const slider = qualityRow.createEl("input", {
+      type: "range",
+      cls: "export-pdf-quality-slider",
+      attr: { min: "10", max: "100", step: "5", value: "60" }
+    });
+    this.qualityInput = slider;
+    const display = qualityRow.createEl("span", {
+      cls: "export-pdf-quality-display",
+      text: "60%"
+    });
+    this.qualityDisplay = display;
+    slider.addEventListener("input", () => {
+      display.setText(slider.value + "%");
+    });
+    const maxWidthRow = new import_obsidian.Setting(contentEl).setName("\u56FE\u7247\u6700\u5927\u5BBD\u5EA6 / Max Width").setDesc("\u63A8\u8350 900px\uFF0C\u8D8A\u4F4E\u6587\u4EF6\u8D8A\u5C0F\uFF0C\u8D8A\u9AD8\u56FE\u7247\u8D8A\u6E05\u6670\nRecommended 900px. Lower=smaller, higher=clearer");
+    const mwInput = maxWidthRow.controlEl.createEl("input", {
+      type: "number",
+      cls: "export-pdf-max-width-input",
+      attr: { min: "200", max: "3000", step: "50", value: "900" }
+    });
+    this.maxWidthInput = mwInput;
     new import_obsidian.Setting(contentEl).addButton(
-      (btn) => btn.setButtonText("Cancel").onClick(() => this.close())
+      (btn) => btn.setButtonText("\u53D6\u6D88 / Cancel").onClick(() => this.close())
     ).addButton((btn) => {
-      btn.setButtonText("Export").setCta().onClick(() => {
+      btn.setButtonText("\u5BFC\u51FA / Export").setCta().onClick(() => {
         const chosen = this.inputEl.value.trim();
         if (!chosen) {
-          new import_obsidian.Notice("[Export PDF] Please specify a save path.");
+          new import_obsidian.Notice("[\u5BFC\u51FA PDF] \u8BF7\u6307\u5B9A\u4FDD\u5B58\u8DEF\u5F84 / Please specify a save path.");
           return;
         }
+        const quality = parseInt(this.qualityInput.value, 10) || 60;
+        const maxWidth = parseInt(this.maxWidthInput.value, 10) || 900;
         this.close();
-        this.onConfirm(chosen);
+        this.onConfirm(chosen, quality, maxWidth);
       });
     });
   }
@@ -101,7 +126,7 @@ var ExportPdfModal = class extends import_obsidian.Modal {
         }
         if (dialog == null ? void 0 : dialog.showSaveDialog) {
           const result = await dialog.showSaveDialog({
-            title: "Export to PDF",
+            title: "\u5BFC\u51FA PDF / Export to PDF",
             defaultPath: this.defaultPath,
             filters: [{ name: "PDF \u6587\u4EF6", extensions: ["pdf"] }]
           });
@@ -142,7 +167,7 @@ var ExportPdfModal = class extends import_obsidian.Modal {
         this.inputEl.value = path.join(selectedDir, this.fileName);
       } else {
         new import_obsidian.Notice(
-          "[Export PDF] Cannot read folder path from dialog.\nPlease type the save path manually in the text field above.",
+          "[\u5BFC\u51FA PDF] \u65E0\u6CD5\u8BFB\u53D6\u6587\u4EF6\u5939\u8DEF\u5F84\u3002\n\u8BF7\u5728\u4E0A\u65B9\u6587\u672C\u6846\u4E2D\u624B\u52A8\u8F93\u5165\u4FDD\u5B58\u8DEF\u5F84\u3002\nCannot read folder path from dialog. Please type the save path manually.",
           8e3
         );
       }
@@ -192,7 +217,7 @@ var ExportPdfPlugin = class extends import_obsidian.Plugin {
     );
     if (!fs.existsSync(this.scriptPath)) {
       new import_obsidian.Notice(
-        "[Export PDF] md_to_pdf.py not found in plugin directory.",
+        "[\u5BFC\u51FA PDF] \u672A\u627E\u5230 md_to_pdf.py\uFF0C\u8BF7\u68C0\u67E5\u63D2\u4EF6\u76EE\u5F55\u3002\nmd_to_pdf.py not found in plugin directory.",
         8e3
       );
       console.error("[Export PDF] Script not found:", this.scriptPath);
@@ -205,7 +230,7 @@ var ExportPdfPlugin = class extends import_obsidian.Plugin {
         if (file.extension !== "md")
           return;
         menu.addItem((item) => {
-          item.setTitle("Export to PDF (image compress)").setIcon("file-output").onClick(() => this.openExportModal(file));
+          item.setTitle("\u5BFC\u51FA PDF\uFF08\u56FE\u7247\u538B\u7F29\uFF09").setIcon("file-output").onClick(() => this.openExportModal(file));
         });
       })
     );
@@ -215,13 +240,13 @@ var ExportPdfPlugin = class extends import_obsidian.Plugin {
         if (!file || file.extension !== "md")
           return;
         menu.addItem((item) => {
-          item.setTitle("Export to PDF (image compress)").setIcon("file-output").onClick(() => this.openExportModal(file));
+          item.setTitle("\u5BFC\u51FA PDF\uFF08\u56FE\u7247\u538B\u7F29\uFF09").setIcon("file-output").onClick(() => this.openExportModal(file));
         });
       })
     );
     this.addCommand({
       id: "export-pdf-with-compress",
-      name: "Export to PDF (image compress)",
+      name: "\u5BFC\u51FA PDF\uFF08\u56FE\u7247\u538B\u7F29\uFF09",
       callback: () => {
         const file = this.app.workspace.getActiveFile();
         if (file)
@@ -240,14 +265,14 @@ var ExportPdfPlugin = class extends import_obsidian.Plugin {
       path.dirname(mdFullPath),
       file.basename + ".pdf"
     );
-    new ExportPdfModal(this.app, defaultOutPath, (outPath) => {
-      this.exportFile(file, outPath);
+    new ExportPdfModal(this.app, defaultOutPath, (outPath, quality, maxWidth) => {
+      this.exportFile(file, outPath, quality, maxWidth);
     }).open();
   }
   /**
    * Export a specific MD file to PDF at the given output path.
    */
-  exportFile(file, outPath) {
+  exportFile(file, outPath, quality, maxWidth) {
     const vaultBasePath = this.app.vault.adapter.basePath || "";
     const mdFullPath = path.join(vaultBasePath, file.path);
     const esc = (p) => p.replace(/"/g, '\\"');
@@ -257,10 +282,10 @@ var ExportPdfPlugin = class extends import_obsidian.Plugin {
       `--md "${esc(mdFullPath)}"`,
       `--vault "${esc(vaultBasePath)}"`,
       `--out "${esc(outPath)}"`,
-      `--quality 60`,
-      `--max-width 900`
+      `--quality ${quality}`,
+      `--max-width ${maxWidth}`
     ].join(" ");
-    const notice = new import_obsidian.Notice("Generating PDF...", 0);
+    const notice = new import_obsidian.Notice("\u6B63\u5728\u751F\u6210 PDF... / Generating PDF...", 0);
     (0, import_child_process.exec)(cmd, { maxBuffer: 20 * 1024 * 1024 }, (error, stdout, stderr) => {
       notice.hide();
       if (error) {
@@ -268,17 +293,17 @@ var ExportPdfPlugin = class extends import_obsidian.Plugin {
         const errMsg = stderr || error.message;
         if (errMsg.includes("No module named") || errMsg.includes("ImportError") || errMsg.includes("ModuleNotFoundError")) {
           new import_obsidian.Notice(
-            "[Export PDF] Python packages missing. Run:\npip3 install reportlab Pillow",
+            "[\u5BFC\u51FA PDF] Python \u4F9D\u8D56\u7F3A\u5931\uFF0C\u8BF7\u8FD0\u884C: pip3 install reportlab Pillow\nPython packages missing. Run: pip3 install reportlab Pillow",
             1e4
           );
         } else if (errMsg.includes("command not found") || errMsg.includes("ENOENT")) {
           new import_obsidian.Notice(
-            "[Export PDF] Python 3 not found. Install from python.org",
+            "[\u5BFC\u51FA PDF] \u672A\u627E\u5230 Python 3\uFF0C\u8BF7\u4ECE python.org \u5B89\u88C5\u3002\nPython 3 not found. Install from python.org.",
             8e3
           );
         } else {
           new import_obsidian.Notice(
-            `[Export PDF] Failed. See console (Ctrl+Shift+I) for details.`,
+            "[\u5BFC\u51FA PDF] \u5BFC\u51FA\u5931\u8D25\uFF0C\u8BF7\u67E5\u770B\u63A7\u5236\u53F0\uFF08Ctrl+Shift+I\uFF09\u83B7\u53D6\u8BE6\u60C5\u3002\nExport failed. See console (Ctrl+Shift+I) for details.",
             8e3
           );
         }
@@ -287,7 +312,8 @@ var ExportPdfPlugin = class extends import_obsidian.Plugin {
       const sizeMatch = stdout.match(/PDF size: (.+)/);
       const sizeInfo = sizeMatch ? ` (${sizeMatch[1]})` : "";
       new import_obsidian.Notice(
-        `[Export PDF] Done!${sizeInfo}`,
+        `[\u5BFC\u51FA PDF] \u5B8C\u6210\uFF01${sizeInfo}
+Export done!${sizeInfo}`,
         5e3
       );
       console.log("[Export PDF]", stdout.trim());

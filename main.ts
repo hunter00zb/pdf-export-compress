@@ -12,12 +12,15 @@ class ExportPdfModal extends Modal {
     private defaultDir: string;
     private fileName: string;
     private inputEl!: HTMLInputElement | HTMLTextAreaElement;
-    private onConfirm: (outPath: string) => void;
+    private qualityInput!: HTMLInputElement;
+    private qualityDisplay!: HTMLSpanElement;
+    private maxWidthInput!: HTMLInputElement;
+    private onConfirm: (outPath: string, quality: number, maxWidth: number) => void;
 
     constructor(
         app: App,
         defaultPath: string,
-        onConfirm: (outPath: string) => void
+        onConfirm: (outPath: string, quality: number, maxWidth: number) => void
     ) {
         super(app);
         this.defaultPath = defaultPath;
@@ -31,12 +34,12 @@ class ExportPdfModal extends Modal {
         contentEl.empty();
         contentEl.addClass("export-pdf-modal");
 
-        contentEl.createEl("h3", { text: "Export to PDF" });
+        contentEl.createEl("h3", { text: "导出 PDF / Export to PDF" });
 
         // ── Output path row: textarea + "选择" button ──
         new Setting(contentEl)
-            .setName("保存位置")
-            .setDesc("默认与源文件同目录");
+            .setName("保存位置 / Save Location")
+            .setDesc("默认与源文件同目录\nSame directory as source file");
 
         const pathRow = contentEl.createDiv({ cls: "export-pdf-path-row" });
 
@@ -48,27 +51,65 @@ class ExportPdfModal extends Modal {
         this.inputEl = textarea;
 
         const browseBtn = pathRow.createEl("button", {
-            text: "选择",
+            text: "另存为 / Save As",
             cls: "export-pdf-browse-btn",
         });
         browseBtn.addEventListener("click", () => this.openSaveDialog());
 
+        // ── Quality slider ──
+        new Setting(contentEl)
+            .setName("图片压缩质量 / Image Quality")
+            .setDesc("推荐 60%，越低文件越小，越高画质越好\nRecommended 60%. Lower=smaller, higher=better");
+
+        const qualityRow = contentEl.createDiv({ cls: "export-pdf-quality-row" });
+
+        const slider = qualityRow.createEl("input", {
+            type: "range",
+            cls: "export-pdf-quality-slider",
+            attr: { min: "10", max: "100", step: "5", value: "60" },
+        });
+        this.qualityInput = slider;
+
+        const display = qualityRow.createEl("span", {
+            cls: "export-pdf-quality-display",
+            text: "60%",
+        });
+        this.qualityDisplay = display;
+
+        slider.addEventListener("input", () => {
+            display.setText(slider.value + "%");
+        });
+
+        // ── Max width ──
+        const maxWidthRow = new Setting(contentEl)
+            .setName("图片最大宽度 / Max Width")
+            .setDesc("推荐 900px，越低文件越小，越高图片越清晰\nRecommended 900px. Lower=smaller, higher=clearer");
+
+        const mwInput = maxWidthRow.controlEl.createEl("input", {
+            type: "number",
+            cls: "export-pdf-max-width-input",
+            attr: { min: "200", max: "3000", step: "50", value: "900" },
+        });
+        this.maxWidthInput = mwInput;
+
         // ── Action buttons ──
         new Setting(contentEl)
             .addButton((btn) =>
-                btn.setButtonText("Cancel").onClick(() => this.close())
+                btn.setButtonText("取消 / Cancel").onClick(() => this.close())
             )
             .addButton((btn) => {
-                btn.setButtonText("Export")
+                btn.setButtonText("导出 / Export")
                     .setCta()
                     .onClick(() => {
                         const chosen = this.inputEl.value.trim();
                         if (!chosen) {
-                            new Notice("[Export PDF] Please specify a save path.");
+                            new Notice("[导出 PDF] 请指定保存路径 / Please specify a save path.");
                             return;
                         }
+                        const quality = parseInt(this.qualityInput.value, 10) || 60;
+                        const maxWidth = parseInt(this.maxWidthInput.value, 10) || 900;
                         this.close();
-                        this.onConfirm(chosen);
+                        this.onConfirm(chosen, quality, maxWidth);
                     });
             });
     }
@@ -103,7 +144,7 @@ class ExportPdfModal extends Modal {
 
                 if (dialog?.showSaveDialog) {
                     const result = await dialog.showSaveDialog({
-                        title: "Export to PDF",
+                        title: "导出 PDF / Export to PDF",
                         defaultPath: this.defaultPath,
                         filters: [{ name: "PDF 文件", extensions: ["pdf"] }],
                     });
@@ -150,8 +191,7 @@ class ExportPdfModal extends Modal {
             } else {
                 // .path unavailable — likely strict contextIsolation
                 new Notice(
-                    "[Export PDF] Cannot read folder path from dialog.\n" +
-                    "Please type the save path manually in the text field above.",
+                    "[导出 PDF] 无法读取文件夹路径。\n请在上方文本框中手动输入保存路径。\nCannot read folder path from dialog. Please type the save path manually.",
                     8000
                 );
             }
@@ -207,7 +247,7 @@ export default class ExportPdfPlugin extends Plugin {
 
         if (!fs.existsSync(this.scriptPath)) {
             new Notice(
-                "[Export PDF] md_to_pdf.py not found in plugin directory.",
+                "[导出 PDF] 未找到 md_to_pdf.py，请检查插件目录。\nmd_to_pdf.py not found in plugin directory.",
                 8000
             );
             console.error("[Export PDF] Script not found:", this.scriptPath);
@@ -224,7 +264,7 @@ export default class ExportPdfPlugin extends Plugin {
                 if (file.extension !== "md") return;
                 menu.addItem((item) => {
                     item
-                        .setTitle("Export to PDF (image compress)")
+                        .setTitle("导出 PDF（图片压缩）")
                         .setIcon("file-output")
                         .onClick(() => this.openExportModal(file));
                 });
@@ -238,7 +278,7 @@ export default class ExportPdfPlugin extends Plugin {
                 if (!file || file.extension !== "md") return;
                 menu.addItem((item) => {
                     item
-                        .setTitle("Export to PDF (image compress)")
+                        .setTitle("导出 PDF（图片压缩）")
                         .setIcon("file-output")
                         .onClick(() => this.openExportModal(file));
                 });
@@ -248,7 +288,7 @@ export default class ExportPdfPlugin extends Plugin {
         // --- Command palette (Cmd+P) ---
         this.addCommand({
             id: "export-pdf-with-compress",
-            name: "Export to PDF (image compress)",
+            name: "导出 PDF（图片压缩）",
             callback: () => {
                 const file = this.app.workspace.getActiveFile();
                 if (file) this.openExportModal(file);
@@ -269,15 +309,15 @@ export default class ExportPdfPlugin extends Plugin {
             file.basename + ".pdf"
         );
 
-        new ExportPdfModal(this.app, defaultOutPath, (outPath: string) => {
-            this.exportFile(file, outPath);
+        new ExportPdfModal(this.app, defaultOutPath, (outPath: string, quality: number, maxWidth: number) => {
+            this.exportFile(file, outPath, quality, maxWidth);
         }).open();
     }
 
     /**
      * Export a specific MD file to PDF at the given output path.
      */
-    private exportFile(file: TFile, outPath: string) {
+    private exportFile(file: TFile, outPath: string, quality: number, maxWidth: number) {
         const vaultBasePath = (this.app.vault.adapter as any).basePath || "";
         const mdFullPath = path.join(vaultBasePath, file.path);
 
@@ -290,11 +330,11 @@ export default class ExportPdfPlugin extends Plugin {
             `--md "${esc(mdFullPath)}"`,
             `--vault "${esc(vaultBasePath)}"`,
             `--out "${esc(outPath)}"`,
-            `--quality 60`,
-            `--max-width 900`,
+            `--quality ${quality}`,
+            `--max-width ${maxWidth}`,
         ].join(" ");
 
-        const notice = new Notice("Generating PDF...", 0);
+        const notice = new Notice("正在生成 PDF... / Generating PDF...", 0);
 
         exec(cmd, { maxBuffer: 20 * 1024 * 1024 }, (error, stdout, stderr) => {
             notice.hide();
@@ -306,17 +346,17 @@ export default class ExportPdfPlugin extends Plugin {
                 const errMsg = stderr || error.message;
                 if (errMsg.includes("No module named") || errMsg.includes("ImportError") || errMsg.includes("ModuleNotFoundError")) {
                     new Notice(
-                        "[Export PDF] Python packages missing. Run:\npip3 install reportlab Pillow",
+                        "[导出 PDF] Python 依赖缺失，请运行: pip3 install reportlab Pillow\nPython packages missing. Run: pip3 install reportlab Pillow",
                         10000
                     );
                 } else if (errMsg.includes("command not found") || errMsg.includes("ENOENT")) {
                     new Notice(
-                        "[Export PDF] Python 3 not found. Install from python.org",
+                        "[导出 PDF] 未找到 Python 3，请从 python.org 安装。\nPython 3 not found. Install from python.org.",
                         8000
                     );
                 } else {
                     new Notice(
-                        `[Export PDF] Failed. See console (Ctrl+Shift+I) for details.`,
+                        "[导出 PDF] 导出失败，请查看控制台（Ctrl+Shift+I）获取详情。\nExport failed. See console (Ctrl+Shift+I) for details.",
                         8000
                     );
                 }
@@ -328,7 +368,7 @@ export default class ExportPdfPlugin extends Plugin {
             const sizeInfo = sizeMatch ? ` (${sizeMatch[1]})` : "";
 
             new Notice(
-                `[Export PDF] Done!${sizeInfo}`,
+                `[导出 PDF] 完成！${sizeInfo}\nExport done!${sizeInfo}`,
                 5000
             );
             console.log("[Export PDF]", stdout.trim());

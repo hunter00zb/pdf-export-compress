@@ -1,5 +1,14 @@
 /* Obsidian Export PDF (+ image compress) - Plugin Styles */
 
+/* ── Modal width constraint ── */
+.export-pdf-modal {
+    max-width: 480px;
+}
+
+.export-pdf-modal .setting-item-description {
+    font-size: var(--font-ui-smaller);
+}
+
 /* ── Path row: textarea + select button ── */
 .export-pdf-path-row {
     display: flex;
@@ -11,7 +20,7 @@
 .export-pdf-path-input {
     flex: 1;
     min-height: unset;
-    height: 2.8em;          /* 2 lines of text */
+    height: 4.2em;          /* 2 lines */
     font-family: var(--font-monospace);
     font-size: var(--font-ui-smaller);
     resize: none;
@@ -20,14 +29,13 @@
     border-radius: 4px;
     background: var(--background-modifier-form-field);
     color: var(--text-normal);
-    line-height: 1.3;
-    overflow-y: auto;
+    line-height: 1.5;
 }
 
 .export-pdf-browse-btn {
     flex-shrink: 0;
     padding: 4px 14px;
-    height: 2.8em;
+    height: 4.2em;
     border: 1px solid var(--background-modifier-border);
     border-radius: 4px;
     background: var(--background-secondary);
@@ -43,4 +51,41 @@
 
 .export-pdf-browse-btn:active {
     background: var(--background-modifier-active);
+}
+
+/* ── Quality slider ── */
+.export-pdf-quality-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0 4px 0;
+}
+
+.export-pdf-quality-slider {
+    flex: 1;
+    height: 4px;
+    accent-color: var(--interactive-accent);
+    cursor: pointer;
+}
+
+.export-pdf-quality-display {
+    flex-shrink: 0;
+    width: 40px;
+    text-align: right;
+    font-size: var(--font-ui-small);
+    font-weight: 600;
+    color: var(--text-accent);
+}
+
+/* ── Max width input ── */
+.export-pdf-max-width-input {
+    width: 80px;
+    padding: 2px 6px;
+    font-family: var(--font-monospace);
+    font-size: var(--font-ui-smaller);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-modifier-form-field);
+    color: var(--text-normal);
+    text-align: right;
 }
