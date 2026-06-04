@@ -1,4 +1,4 @@
-# 导出 PDF（图片压缩） / Export PDF (+ Image Compress)
+# Export PDF Compress
 
 [中文](#chinese) | [English](#english)
 
