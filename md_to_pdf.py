@@ -18,6 +18,7 @@ Supports:
 
 import argparse
 import io
+import json
 import os
 import re
 import sys
@@ -128,6 +129,164 @@ TABLE_STYLE = TableStyle([
 
 # ─── Image handling ───────────────────────────────────────────────────────
 
+# Excalidraw rendering support
+_EXCALIDRAW_SVG_RENDERER = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                         "excalidraw_to_svg.py")
+
+
+def _is_excalidraw(name: str) -> bool:
+    """Check if the filename refers to an excalidraw diagram."""
+    n = name.lower()
+    return n.endswith(".excalidraw") or ".excalidraw|" in name or n.endswith(".excalidraw.md")
+
+
+def _find_excalidraw_md(img_name: str, md_dir: str, vault_root: str) -> str | None:
+    """Find the .excalidraw.md file for an excalidraw embed."""
+    # Strip Obsidian display size modifier: ![[file.excalidraw|400]]
+    base = img_name.split("|")[0].strip()
+
+    # Try exact path / relative to MD
+    candidates = [os.path.join(md_dir, base)]
+
+    # Also try with .md extension if not already
+    if not base.endswith(".md"):
+        candidates.append(os.path.join(md_dir, base + ".md"))
+
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+
+    # Walk nearby dirs
+    name_only = os.path.basename(base)
+    if not name_only.endswith(".md"):
+        name_only_md = name_only + ".md"
+    else:
+        name_only_md = name_only
+
+    for root, dirs, files in os.walk(md_dir):
+        depth = root[len(md_dir):].count(os.sep)
+        if depth > 3:
+            dirs.clear()
+            continue
+        for f in files:
+            if f == name_only or f == name_only_md:
+                return os.path.join(root, f)
+
+    print(f"  Excalidraw file not found: {base}", file=sys.stderr)
+    return None
+
+
+def _render_excalidraw_as_svg(excalidraw_md_path: str) -> str | None:
+    """Extract Excalidraw JSON from .excalidraw.md and render to SVG."""
+    try:
+        content = Path(excalidraw_md_path).read_text(encoding="utf-8")
+    except Exception as e:
+        print(f"  Failed to read {excalidraw_md_path}: {e}", file=sys.stderr)
+        return None
+
+    json_str = None
+
+    # Try compressed-json format (Obsidian Excalidraw plugin)
+    match = re.search(r'```compressed-json\s*\n(.*?)\n```', content, re.DOTALL)
+    if match:
+        try:
+            from lzstring import LZString
+            # Strip whitespace/newlines from compressed base64 data
+            compressed = re.sub(r'\s+', '', match.group(1))
+            json_str = LZString.decompressFromBase64(compressed)
+            if json_str:
+                print(f"  Decompressed {len(compressed)} → {len(json_str)} chars")
+        except ImportError:
+            print("  lzstring not available for compressed-json", file=sys.stderr)
+        except Exception as e:
+            print(f"  LZ decompress failed: {e}", file=sys.stderr)
+
+    # Try plain JSON format (excalidraw-cli / manual)
+    if not json_str:
+        match = re.search(r'```json\s*\n(.*?)\n```', content, re.DOTALL)
+        if match:
+            json_str = match.group(1).strip()
+
+    # Last resort: find JSON object directly
+    if not json_str:
+        match = re.search(r'\{[^{]*"elements"\s*:\s*\[.*?\}[^}]*\}', content, re.DOTALL)
+        if match:
+            json_str = match.group(0)
+
+    if not json_str:
+        print(f"  No JSON found in {excalidraw_md_path}", file=sys.stderr)
+        return None
+
+    try:
+        data = json.loads(json_str)
+    except json.JSONDecodeError as e:
+        print(f"  JSON parse error in {excalidraw_md_path}: {e}", file=sys.stderr)
+        return None
+
+    elements = data.get("elements", [])
+    if not elements and isinstance(data, list):
+        elements = data
+
+    if not elements:
+        print(f"  No elements in {excalidraw_md_path}", file=sys.stderr)
+        return None
+
+    # Import and render
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from excalidraw_to_svg import render_elements_to_svg
+
+    print(f"  Rendering {len(elements)} Excalidraw elements → SVG")
+    return render_elements_to_svg(elements)
+
+
+def _svg_to_png(svg_str: str, scale: float = 2.0) -> io.BytesIO | None:
+    """Convert SVG string to PNG bytes using resvg."""
+    try:
+        import resvg_py
+        png_bytes = resvg_py.svg_to_bytes(svg_str, zoom=2)
+        buf = io.BytesIO(png_bytes)
+        buf.seek(0)
+        return buf
+    except ImportError:
+        print("  resvg-py not available, falling back to cairosvg", file=sys.stderr)
+        try:
+            import cairosvg
+            png_bytes = cairosvg.svg2png(bytestring=svg_str.encode("utf-8"), scale=scale)
+            buf = io.BytesIO(png_bytes)
+            buf.seek(0)
+            return buf
+        except ImportError:
+            print("  No SVG→PNG renderer available", file=sys.stderr)
+            return None
+
+
+def _render_excalidraw(excalidraw_md_path: str, max_width: int) -> io.BytesIO | None:
+    """Full pipeline: .excalidraw.md → SVG → PNG."""
+    svg = _render_excalidraw_as_svg(excalidraw_md_path)
+    if not svg:
+        return None
+
+    png_buf = _svg_to_png(svg)
+    if not png_buf:
+        return None
+
+    # Resize if needed
+    try:
+        with Image.open(png_buf) as im:
+            if im.width > max_width:
+                ratio = max_width / im.width
+                new_size = (max_width, int(im.height * ratio))
+                im = im.resize(new_size, Image.LANCZOS)
+                out = io.BytesIO()
+                im.save(out, format="PNG")
+                out.seek(0)
+                return out
+        png_buf.seek(0)
+        return png_buf
+    except Exception as e:
+        print(f"  Excalidraw resize failed: {e}", file=sys.stderr)
+        return None
+
 
 def _find_image(img_name: str, md_dir: str, vault_root: str) -> str | None:
     """Search for an image across Obsidian-relevant paths."""
@@ -148,7 +307,11 @@ def _find_image(img_name: str, md_dir: str, vault_root: str) -> str | None:
             if f == name_only:
                 candidates.append(os.path.join(root, f))
 
-    # Walk vault root for Obsidian-wide attachments
+    # Check vault root directly (Obsidian default: pasted images go here)
+    if vault_root and os.path.isdir(vault_root) and vault_root != md_dir:
+        candidates.append(os.path.join(vault_root, img_name))
+
+    # Walk vault attachment subdirs
     if vault_root and os.path.isdir(vault_root) and vault_root != md_dir:
         attachment_dirs = ["attachments", "assets", "images", "img", "pics"]
         for ad in attachment_dirs:
@@ -199,12 +362,55 @@ def _compress_image(img_path: str, max_width: int, quality: int) -> io.BytesIO |
 
 def _make_image(img_name: str, md_dir: str, vault_root: str,
                 max_width: int, quality: int):
-    """Find, compress, and return a ReportLab Image flowable."""
+    """Find, compress, and return a ReportLab Image flowable.
+    Handles: images (.png/.jpg/...) and excalidraw diagrams (.excalidraw/.excalidraw.md)
+    """
     from reportlab.platypus import Image as RLImage
 
+    # ═══ Excalidraw rendering ═══
+    if _is_excalidraw(img_name):
+        print(f"  Excalidraw embed: {img_name}")
+        exc_path = _find_excalidraw_md(img_name, md_dir, vault_root)
+        if not exc_path:
+            return None
+        buf = _render_excalidraw(exc_path, max_width)
+        if not buf:
+            return None
+        avail_w = PAGE_W - 4 * cm
+        with Image.open(buf) as tmp:
+            w_px, h_px = tmp.size
+        buf.seek(0)
+        scale = min(avail_w / w_px, 1.0)
+        return RLImage(buf, width=w_px * scale, height=h_px * scale)
+
+    # ═══ Normal image ═══
     found = _find_image(img_name, md_dir, vault_root)
     if not found:
         return None
+
+    # SVG rendering (PIL cannot open SVG natively)
+    if found.lower().endswith('.svg'):
+        from pathlib import Path as _Path
+        svg_content = _Path(found).read_text(encoding='utf-8')
+        buf = _svg_to_png(svg_content)
+        if not buf:
+            return None
+        # Resize + JPEG compress the rendered PNG for PDF
+        with Image.open(buf) as im:
+            w_px, h_px = im.size
+            if im.width > max_width:
+                ratio = max_width / im.width
+                im = im.resize((max_width, int(im.height * ratio)), Image.LANCZOS)
+                w_px, h_px = im.size
+            if im.mode in ("RGBA", "P"):
+                im = im.convert("RGB")
+            out = io.BytesIO()
+            im.save(out, format="JPEG", quality=quality, optimize=True)
+            out.seek(0)
+            buf = out
+        avail_w = PAGE_W - 4 * cm
+        scale = min(avail_w / w_px, 1.0)
+        return RLImage(buf, width=w_px * scale, height=h_px * scale)
 
     buf = _compress_image(found, max_width, quality)
     if not buf:
@@ -461,6 +667,20 @@ def main():
     # Read Markdown
     print(f"Reading: {md_path}")
     md_text = Path(md_path).read_text(encoding="utf-8")
+
+    # ═══ Excalidraw guard: bail out early if any excalidraw refs found ═══
+    excalidraw_refs = re.findall(r'!\[\[[^]]*\.excalidraw[^]]*\]\]', md_text)
+    if excalidraw_refs:
+        print("", file=sys.stderr)
+        print("⚠️  检测到 Excalidraw 格式图片，无法直接导出 PDF。", file=sys.stderr)
+        print("", file=sys.stderr)
+        for ref in excalidraw_refs:
+            print(f"    {ref}", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("操作提示：请在 Obsidian 中将 Excalidraw 图导出为 PNG，", file=sys.stderr)
+        print("再替换 MD 中的引用，然后重新执行导出。", file=sys.stderr)
+        print("", file=sys.stderr)
+        sys.exit(1)
 
     # Strip YAML frontmatter
     if md_text.startswith("---"):

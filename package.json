@@ -1,6 +1,6 @@
 {
   "name": "pdf-export-compress",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Obsidian Export PDF (+ image compress) - Export Markdown to PDF with automatic image compression",
   "main": "main.js",
   "scripts": {

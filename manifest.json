@@ -1,7 +1,7 @@
 {
   "id": "pdf-export-compress",
   "name": "导出 PDF（图片压缩）/ Export PDF (+ Image Compress)",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "minAppVersion": "0.15.0",
   "description": "将 Markdown 导出为 PDF，支持图片自动压缩。Python（reportlab + Pillow）渲染，支持 CJK。/ Export Markdown to PDF with auto image compression. Python (reportlab + Pillow) engine, CJK support.",
   "author": "hunter00zb",
